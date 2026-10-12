@@ -1,0 +1,394 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>RailAssist - Indian Railway AI Portal</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+    }
+
+    body {
+      background-color: #f1f5f9;
+      color: #1e293b;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    header {
+      background: linear-gradient(135deg, #0b3b60, #1e5f8a);
+      color: #ffffff;
+      padding: 1.25rem 2.5rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    }
+
+    header h1 {
+      font-size: 1.5rem;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    header span {
+      font-size: 0.875rem;
+      background: rgba(255, 255, 255, 0.15);
+      padding: 0.35rem 0.85rem;
+      border-radius: 9999px;
+      font-weight: 500;
+    }
+
+    main {
+      flex: 1;
+      max-width: 1200px;
+      width: 100%;
+      margin: 2rem auto;
+      padding: 0 1.5rem;
+      display: grid;
+      grid-template-columns: 1fr 440px;
+      gap: 2.5rem;
+      align-items: start;
+    }
+
+    @media (max-width: 850px) {
+      main {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .info-section {
+      background: #ffffff;
+      padding: 2.25rem;
+      border-radius: 12px;
+      border: 1px solid #e2e8f0;
+      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+    }
+
+    .info-section h2 {
+      font-size: 1.75rem;
+      color: #0b3b60;
+      margin-bottom: 0.75rem;
+    }
+
+    .info-section p {
+      color: #64748b;
+      font-size: 1rem;
+      line-height: 1.6;
+      margin-bottom: 2rem;
+    }
+
+    .features-list {
+      display: flex;
+      flex-direction: column;
+      gap: 1.25rem;
+    }
+
+    .feature-item {
+      display: flex;
+      gap: 1rem;
+      background: #f8fafc;
+      padding: 1.2rem;
+      border-radius: 8px;
+      border-left: 4px solid #0b3b60;
+    }
+
+    .feature-item h3 {
+      font-size: 1rem;
+      font-weight: 600;
+      color: #0f172a;
+      margin-bottom: 0.25rem;
+    }
+
+    .feature-item p {
+      font-size: 0.875rem;
+      color: #64748b;
+      line-height: 1.4;
+    }
+
+    .sample-prompts {
+      margin-top: 1.75rem;
+      padding-top: 1.5rem;
+      border-top: 1px solid #e2e8f0;
+    }
+
+    .sample-prompts h4 {
+      font-size: 0.85rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: #94a3b8;
+      margin-bottom: 0.75rem;
+    }
+
+    .prompt-tags {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+    }
+
+    .tag {
+      background: #e2e8f0;
+      color: #334155;
+      font-size: 0.8rem;
+      padding: 0.35rem 0.75rem;
+      border-radius: 6px;
+      cursor: pointer;
+      font-family: monospace;
+      transition: background 0.2s;
+    }
+
+    .tag:hover {
+      background: #cbd5e1;
+    }
+
+    .chat-card {
+      background: #ffffff;
+      border-radius: 12px;
+      border: 1px solid #e2e8f0;
+      box-shadow: 0 8px 24px -4px rgba(0, 0, 0, 0.08);
+      display: flex;
+      flex-direction: column;
+      height: 560px;
+      overflow: hidden;
+    }
+
+    .chat-header {
+      background: #0b3b60;
+      color: #ffffff;
+      padding: 1rem;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .status-indicator {
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+      font-size: 0.75rem;
+      font-weight: 400;
+      color: #e2e8f0;
+    }
+
+    .dot {
+      width: 8px;
+      height: 8px;
+      background-color: #22c55e;
+      border-radius: 50%;
+    }
+
+    .chat-messages {
+      flex: 1;
+      padding: 1rem;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+      background: #f8fafc;
+    }
+
+    .msg {
+      max-width: 85%;
+      padding: 0.75rem 1rem;
+      border-radius: 8px;
+      font-size: 0.9rem;
+      line-height: 1.4;
+      white-space: pre-wrap;
+      word-wrap: break-word;
+    }
+
+    .msg-bot {
+      background: #ffffff;
+      border: 1px solid #e2e8f0;
+      align-self: flex-start;
+      color: #1e293b;
+    }
+
+    .msg-user {
+      background: #0b3b60;
+      color: #ffffff;
+      align-self: flex-end;
+    }
+
+    .msg-loading {
+      font-style: italic;
+      color: #64748b;
+      background: #ffffff;
+      border: 1px dashed #cbd5e1;
+    }
+
+    .chat-input-bar {
+      display: flex;
+      border-top: 1px solid #e2e8f0;
+      background: #ffffff;
+    }
+
+    .chat-input-bar input {
+      flex: 1;
+      border: none;
+      padding: 0.9rem 1rem;
+      font-size: 0.9rem;
+      outline: none;
+    }
+
+    .chat-input-bar button {
+      background: #0b3b60;
+      color: #ffffff;
+      border: none;
+      padding: 0 1.25rem;
+      cursor: pointer;
+      font-weight: 600;
+      transition: background 0.2s;
+    }
+
+    .chat-input-bar button:hover {
+      background: #1e5f8a;
+    }
+
+    footer {
+      text-align: center;
+      padding: 1.5rem;
+      color: #94a3b8;
+      font-size: 0.85rem;
+      margin-top: auto;
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <h1>RailAssist AI Portal</h1>
+    <span>IRCTC Assistance Demo</span>
+  </header>
+
+  <main>
+    <section class="info-section">
+      <h2>Automated Railway Operations Desk</h2>
+      <p>
+        An intelligent conversational interface powered by Natural Language Understanding (NLU) to handle train scheduling, seat bookings, PNR status verification, and instant cancellations.
+      </p>
+
+      <div class="features-list">
+        <div class="feature-item">
+          <div>
+            <h3>1. Train Discovery</h3>
+            <p>Identifies source, destination, and dates to return available express services.</p>
+          </div>
+        </div>
+
+        <div class="feature-item">
+          <div>
+            <h3>2. Reservation Slot-Filling</h3>
+            <p>Prompts sequentially for missing details (train number, travel class, and passenger name).</p>
+          </div>
+        </div>
+
+        <div class="feature-item">
+          <div>
+            <h3>3. PNR Inquiries & Cancellation</h3>
+            <p>Parses 10-digit sequence numbers for real-time status and refund dispatch confirmation.</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="sample-prompts">
+        <h4>Click sample prompt to test:</h4>
+        <div class="prompt-tags">
+          <span class="tag" onclick="sendSample('Find trains from Mumbai to Delhi tomorrow')">"Find trains from Mumbai to Delhi tomorrow"</span>
+          <span class="tag" onclick="sendSample('Book a train ticket')">"Book a train ticket"</span>
+          <span class="tag" onclick="sendSample('Check PNR 8492019482')">"Check PNR 8492019482"</span>
+          <span class="tag" onclick="sendSample('Cancel my ticket')">"Cancel my ticket"</span>
+        </div>
+      </div>
+    </section>
+
+    <section class="chat-card">
+      <div class="chat-header">
+        <span>💬 RailAssist Assistant</span>
+        <div class="status-indicator">
+          <span class="dot"></span>
+          <span>Connected via API</span>
+        </div>
+      </div>
+      <div class="chat-messages" id="chatArea">
+        <div class="msg msg-bot">Hello! I am your Railway Assistant connected to Dialogflow. How may I assist your travel today?</div>
+      </div>
+      <form class="chat-input-bar" id="chatForm">
+        <input type="text" id="userInput" placeholder="Ask about trains, booking, PNR..." autocomplete="off">
+        <button type="submit">Send</button>
+      </form>
+    </section>
+  </main>
+
+  <footer>
+    Railway Reservation Chatbot &copy; Academic Project Submission
+  </footer>
+
+  <script>
+    const chatArea = document.getElementById('chatArea');
+    const chatForm = document.getElementById('chatForm');
+    const userInput = document.getElementById('userInput');
+
+    // Generates a random session ID on page load to maintain Dialogflow multi-turn context
+    const sessionId = 'session-' + Math.random().toString(36).substring(2, 9);
+
+    function appendMessage(text, sender, id = null) {
+      const msg = document.createElement('div');
+      msg.className = `msg msg-${sender}`;
+      if (id) msg.id = id;
+      msg.textContent = text;
+      chatArea.appendChild(msg);
+      chatArea.scrollTop = chatArea.scrollHeight;
+      return msg;
+    }
+
+    async function sendMessageToDialogflow(text) {
+      appendMessage(text, 'user');
+      userInput.value = '';
+
+      // Temporary loading indicator
+      const loadingBubble = appendMessage('Connecting to agent...', 'bot msg-loading');
+
+      try {
+        const response = await fetch('http://localhost:3000/api/chat', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ message: text, sessionId: sessionId })
+        });
+
+        const data = await response.json();
+        loadingBubble.remove();
+
+        if (data.reply) {
+          appendMessage(data.reply, 'bot');
+        } else {
+          appendMessage("No response text received from Dialogflow agent.", 'bot');
+        }
+      } catch (err) {
+        loadingBubble.remove();
+        appendMessage("Unable to connect to local bridge server (http://localhost:3000). Ensure 'node server.js' is running in your terminal.", 'bot');
+        console.error('Fetch Error:', err);
+      }
+    }
+
+    chatForm.addEventListener('submit', (e) => {
+      e.preventDefault();
+      const val = userInput.value.trim();
+      if (!val) return;
+      sendMessageToDialogflow(val);
+    });
+
+    function sendSample(text) {
+      sendMessageToDialogflow(text);
+    }
+  </script>
+</body>
+</html>

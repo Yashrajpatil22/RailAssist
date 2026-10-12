@@ -1,0 +1,124 @@
+{
+  "trains": [
+    {
+      "number": "12951",
+      "name": "Mumbai Rajdhani Express",
+      "from": "mumbai",
+      "to": "delhi",
+      "departure": "17:00",
+      "arrival": "08:32",
+      "fare": {
+        "1A": 4800,
+        "2A": 3200,
+        "3A": 2400
+      },
+      "seats": {
+        "1A": 12,
+        "2A": 28,
+        "3A": 54
+      }
+    },
+    {
+      "number": "12953",
+      "name": "August Kranti Tejas Rajdhani",
+      "from": "mumbai",
+      "to": "delhi",
+      "departure": "17:40",
+      "arrival": "10:55",
+      "fare": {
+        "1A": 4650,
+        "2A": 3050,
+        "3A": 2250
+      },
+      "seats": {
+        "1A": 6,
+        "2A": 18,
+        "3A": 42
+      }
+    },
+    {
+      "number": "12009",
+      "name": "Mumbai Central - Ahmedabad Shatabdi",
+      "from": "mumbai",
+      "to": "ahmedabad",
+      "departure": "06:20",
+      "arrival": "12:45",
+      "fare": {
+        "CC": 1100,
+        "EC": 2100
+      },
+      "seats": {
+        "CC": 65,
+        "EC": 14
+      }
+    },
+    {
+      "number": "22221",
+      "name": "CSMT Hazrat Nizamuddin Rajdhani",
+      "from": "mumbai",
+      "to": "delhi",
+      "departure": "16:00",
+      "arrival": "09:55",
+      "fare": {
+        "1A": 4750,
+        "2A": 3150,
+        "3A": 2350
+      },
+      "seats": {
+        "1A": 10,
+        "2A": 22,
+        "3A": 48
+      }
+    }
+  ],
+  "bookings": {
+    "2835741217": {
+      "pnr": "2835741217",
+      "passenger": "Amit Verma",
+      "trainNumber": "12951",
+      "trainName": "Mumbai Rajdhani Express",
+      "travelClass": "2AC",
+      "coach": "B3",
+      "berth": "13 (Lower)",
+      "farePaid": 2200,
+      "status": "CNF (Confirmed)",
+      "bookingDate": "8/10/2026"
+    },
+    "8492019482": {
+      "pnr": "8492019482",
+      "passenger": "Rahul Sharma",
+      "trainNumber": "12951",
+      "trainName": "Mumbai Rajdhani Express",
+      "travelClass": "3A",
+      "coach": "B2",
+      "berth": "34 (Side Lower)",
+      "farePaid": 2400,
+      "status": "CAN (Cancelled)",
+      "bookingDate": "07/10/2026"
+    },
+    "5038099387": {
+      "pnr": "5038099387",
+      "passenger": "Priya Sharma",
+      "trainNumber": "12953",
+      "trainName": "August Kranti Tejas Rajdhani",
+      "travelClass": "3AC",
+      "coach": "B3",
+      "berth": "13 (Upper)",
+      "farePaid": 2200,
+      "status": "CAN (Cancelled)",
+      "bookingDate": "8/10/2026"
+    },
+    "9341583658": {
+      "pnr": "9341583658",
+      "passenger": "Vedant Ghuge",
+      "trainNumber": "12951",
+      "trainName": "Mumbai Rajdhani Express",
+      "travelClass": "3AC",
+      "coach": "B3",
+      "berth": "49 (Middle)",
+      "farePaid": 2200,
+      "status": "CAN (Cancelled)",
+      "bookingDate": "12/10/2026"
+    }
+  }
+}
