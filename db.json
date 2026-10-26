@@ -72,6 +72,18 @@
     }
   ],
   "bookings": {
+    "1564581779": {
+      "pnr": "1564581779",
+      "passenger": "rakehs rameh roshan",
+      "trainNumber": "12951",
+      "trainName": "Mumbai Rajdhani Express",
+      "travelClass": "1A",
+      "coach": "H1",
+      "berth": "10 (Upper)",
+      "farePaid": 4800,
+      "status": "CNF (Confirmed)",
+      "bookingDate": "27/10/2026"
+    },
     "2835741217": {
       "pnr": "2835741217",
       "passenger": "Amit Verma",
@@ -119,6 +131,54 @@
       "farePaid": 2200,
       "status": "CAN (Cancelled)",
       "bookingDate": "12/10/2026"
+    },
+    "4483807451": {
+      "pnr": "4483807451",
+      "passenger": "bc",
+      "trainNumber": "12951",
+      "trainName": "Mumbai Rajdhani Express",
+      "travelClass": "3AC",
+      "coach": "B3",
+      "berth": "15 (Side Lower)",
+      "farePaid": 2200,
+      "status": "CNF (Confirmed)",
+      "bookingDate": "13/10/2026"
+    },
+    "6890891628": {
+      "pnr": "6890891628",
+      "passenger": "Rohit Sharma",
+      "trainNumber": "12951",
+      "trainName": "Mumbai Rajdhani Express",
+      "travelClass": "2A",
+      "coach": "A1",
+      "berth": "14 (Middle)",
+      "farePaid": 3200,
+      "status": "CNF (Confirmed)",
+      "bookingDate": "27/10/2026"
+    },
+    "7033457688": {
+      "pnr": "7033457688",
+      "passenger": "jhatu",
+      "trainNumber": "12953",
+      "trainName": "August Kranti Tejas Rajdhani",
+      "travelClass": "1A",
+      "coach": "H1",
+      "berth": "21 (Side Lower)",
+      "farePaid": 4650,
+      "status": "CNF (Confirmed)",
+      "bookingDate": "27/10/2026"
+    },
+    "8260880902": {
+      "pnr": "8260880902",
+      "passenger": "Taklya haivan",
+      "trainNumber": "12951",
+      "trainName": "Mumbai Rajdhani Express",
+      "travelClass": "1A",
+      "coach": "H1",
+      "berth": "15 (Lower)",
+      "farePaid": 4800,
+      "status": "CAN (Cancelled)",
+      "bookingDate": "27/10/2026"
     }
   }
 }
