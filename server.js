@@ -17,8 +17,9 @@ const projectId = "railway-bot-web-ruat";
 const sessionClient = new dialogflow.SessionsClient();
 const contextsClient = new dialogflow.ContextsClient();
 
-// Multi-turn booking session tracker
+// Multi-turn session state trackers
 const bookingSessions = {};
+const cancelSessions = {};
 
 // City & Station Aliases
 const CITY_ALIASES = {
@@ -42,25 +43,6 @@ const CITY_ALIASES = {
   bangalore: ["bangalore", "bengaluru", "sbc"],
 };
 
-// Banned words & slang filter for passenger names
-const BANNED_WORDS = [
-  "idiot",
-  "stupid",
-  "jhatu",
-  "chutiya",
-  "harami",
-  "kamina",
-  "panga",
-  "lala",
-  "gandu",
-  "bondo",
-  "fake",
-  "test",
-  "null",
-  "undefined",
-  "anonymous",
-];
-
 function normalizeCity(input) {
   if (!input) return null;
   const clean = input.toLowerCase().trim();
@@ -73,17 +55,9 @@ function normalizeCity(input) {
 }
 
 function isValidName(name) {
-  if (!name || name.trim().length < 3) return false;
-  const clean = name.trim().toLowerCase();
-
-  // Must only contain letters and single spaces
-  if (!/^[a-zA-Z]+(\s[a-zA-Z]+)*$/.test(name.trim())) return false;
-
-  // Reject banned terms
-  for (const word of BANNED_WORDS) {
-    if (clean.includes(word)) return false;
-  }
-  return true;
+  if (!name || name.trim().length < 2) return false;
+  // Must only contain letters and spaces
+  return /^[a-zA-Z]+(\s[a-zA-Z]+)*$/.test(name.trim());
 }
 
 function extractParam(paramField) {
@@ -158,7 +132,7 @@ function handleBookingStep(sessionId, message) {
   // STEP 3: Validate Passenger Name
   if (session.step === "name") {
     if (!isValidName(cleanMsg)) {
-      return `⚠️ "${cleanMsg}" is not a valid passenger name.\n\nPlease enter a real full name using letters only (e.g., "Rajesh Sharma"), or type "exit" to cancel.`;
+      return `⚠️ "${cleanMsg}" is not a valid passenger name.\n\nPlease enter a name using letters only, or type "exit" to cancel.`;
     }
 
     session.data.passengerName = cleanMsg.trim();
@@ -230,7 +204,11 @@ function executeFulfillment(
   const lowerMsg = cleanMsg.toLowerCase();
 
   // 1. Train Search Intent
-  if (intentName && intentName.toLowerCase().includes("search")) {
+  // 1. Train Search Intent
+  if (
+    (intentName && intentName.toLowerCase().includes("search")) ||
+    /\b(train|trains)\b/i.test(cleanMsg)
+  ) {
     let rawFrom =
       extractParam(params.source) ||
       extractParam(params["geo-city-from"]) ||
@@ -242,19 +220,45 @@ function executeFulfillment(
 
     if (!rawFrom) {
       const fromMatch = lowerMsg.match(
-        /from\s+([a-zA-Z\s]+?)(?=\s+to|\s+tomorrow|\s+today|$)/,
+        /from\s+([a-zA-Z\s]+?)(?=\s+to|\s+tomorrow|\s+today|\s+going|\?|$)/,
       );
       if (fromMatch) rawFrom = fromMatch[1];
     }
     if (!rawTo) {
       const toMatch = lowerMsg.match(
-        /to\s+([a-zA-Z\s]+?)(?=\s+from|\s+tomorrow|\s+today|$)/,
+        /(?:to|going to)\s+([a-zA-Z\s]+?)(?=\s+from|\s+tomorrow|\s+today|\?|$)/,
       );
       if (toMatch) rawTo = toMatch[1];
     }
 
+    // Direct scan across all known city aliases if not captured
+    if (!rawFrom && !rawTo) {
+      for (const [standardCity, aliases] of Object.entries(CITY_ALIASES)) {
+        if (
+          aliases.some((alias) =>
+            new RegExp(`\\b${alias}\\b`, "i").test(cleanMsg),
+          )
+        ) {
+          if (/to|going/i.test(cleanMsg)) {
+            rawTo = standardCity;
+          } else {
+            rawFrom = standardCity;
+          }
+          break;
+        }
+      }
+    }
+
     const fromCity = normalizeCity(rawFrom);
     const toCity = normalizeCity(rawTo);
+
+    // If both cities are completely missing or garbage symbols were provided
+    if (!fromCity && !toCity) {
+      return (
+        `🤔 Please specify an origin or destination city (e.g., "Trains from Mumbai to Delhi" or "Trains to Ahmedabad").\n\n` +
+        `💡 Available routes:\n• Mumbai ➔ Delhi\n• Mumbai ➔ Ahmedabad`
+      );
+    }
 
     let matches = db.getTrains();
 
@@ -275,7 +279,7 @@ function executeFulfillment(
           ? `${fromCity.toUpperCase()} to ${toCity.toUpperCase()}`
           : toCity
             ? `destination ${toCity.toUpperCase()}`
-            : `origin ${fromCity ? fromCity.toUpperCase() : "specified location"}`;
+            : `origin ${fromCity ? fromCity.toUpperCase() : "the specified city"}`;
       return `❌ No direct trains found for ${routeText}.\n\n💡 Try available routes:\n• Mumbai ➔ Delhi\n• Mumbai ➔ Ahmedabad`;
     }
 
@@ -300,15 +304,19 @@ function executeFulfillment(
   }
 
   // 2. Ticket Booking Intent Initialization
+  const isCancelPhrase = /\b(cancel|canel|cancle|refund|drop)\b/i.test(
+    cleanMsg,
+  );
   const hasBookingKeyword =
-    /\b(book|booking|ticket|reserve|reservation)\b/i.test(cleanMsg);
+    /\b(book|booking|reserve|reservation)\b/i.test(cleanMsg) && !isCancelPhrase;
+
   if (
     intentName &&
     (intentName.toLowerCase().includes("book") ||
       intentName.toLowerCase().includes("reservation")) &&
     hasBookingKeyword
   ) {
-    // Check for one-shot booking (e.g. "Book 3A ticket on 12951 for Priya")
+    // Check for one-shot booking (e.g., "Book 3A ticket on 12951 for Priya")
     const numMatch = cleanMsg.match(/\b\d{5}\b/);
     const validClasses = ["1A", "2A", "3A", "SL", "CC", "EC"];
     const matchedClass = validClasses.find((cls) =>
@@ -391,14 +399,19 @@ function executeFulfillment(
   }
 
   // 4. Ticket Cancellation Intent
-  if (intentName && intentName.toLowerCase().includes("cancel")) {
+  if (
+    (intentName && intentName.toLowerCase().includes("cancel")) ||
+    /\b(cancel|canel|cancle|refund)\b/i.test(cleanMsg)
+  ) {
     const pnrMatch = cleanMsg.match(/\b\d{10}\b/);
     const rawPnr = pnrMatch ? pnrMatch[0] : extractParam(params.pnr_number);
 
     if (!rawPnr) {
+      cancelSessions[sessionId] = true;
       return `⚠️ Please provide your 10-digit PNR to cancel your ticket.\nExample: "Cancel PNR 8492019482"`;
     }
 
+    delete cancelSessions[sessionId];
     const record = db.getBooking(rawPnr);
     if (!record) {
       return `❌ Cancellation failed: PNR ${rawPnr} does not exist in our active database.`;
@@ -453,7 +466,7 @@ function executeFulfillment(
     }
   }
 
-  // 6. Default Fallback
+  // 6. Default Fallback Menu
   return (
     `🤔 I didn't recognize that request. As your Railway Assistant, I can help you with:\n\n` +
     `• 🔍 Search Trains: "Trains from Mumbai to Delhi"\n` +
@@ -475,6 +488,7 @@ app.post("/api/chat", async (req, res) => {
     }
 
     const cleanMsg = message.trim();
+    const lowerMsg = cleanMsg.toLowerCase();
     const sessionPath = sessionClient.projectAgentSessionPath(
       projectId,
       sessionId,
@@ -489,8 +503,9 @@ app.post("/api/chat", async (req, res) => {
       "abort",
       "cancel booking",
     ];
-    if (exitWords.includes(cleanMsg.toLowerCase())) {
+    if (exitWords.includes(lowerMsg)) {
       delete bookingSessions[sessionId];
+      delete cancelSessions[sessionId];
       try {
         await contextsClient.deleteAllContexts({ parent: sessionPath });
       } catch (e) {}
@@ -501,23 +516,132 @@ app.post("/api/chat", async (req, res) => {
       });
     }
 
-    // 2. Intercept: If user is inside booking flow
-    if (bookingSessions[sessionId]) {
-      const hasTenDigitPnr = /\b\d{10}\b/.test(cleanMsg);
-      const isPnrQuery = /pnr|status/i.test(cleanMsg) && hasTenDigitPnr;
-      const isCancelQuery = /cancel/i.test(cleanMsg) && hasTenDigitPnr;
+    // 2. Cancellation Multi-Turn Intercept (User was asked for PNR)
+    if (cancelSessions[sessionId]) {
+      const pnrMatch = cleanMsg.match(/\b\d{10}\b/);
+      if (pnrMatch) {
+        delete cancelSessions[sessionId];
+        const record = db.getBooking(pnrMatch[0]);
+        if (!record) {
+          return res.json({
+            reply: `❌ Cancellation failed: PNR ${pnrMatch[0]} does not exist in our active database.`,
+            intent: "cancel_ticket",
+          });
+        }
+        if (
+          record.status.includes("Cancelled") ||
+          record.status.includes("CAN")
+        ) {
+          return res.json({
+            reply: `ℹ️ Ticket for PNR ${pnrMatch[0]} is already CANCELLED. No further action needed.`,
+            intent: "cancel_ticket",
+          });
+        }
+        const deduction = 240;
+        const refundAmount = Math.max(0, record.farePaid - deduction);
+        db.updateBookingStatus(pnrMatch[0], "CAN (Cancelled)");
+        return res.json({
+          reply:
+            `✅ Ticket Cancelled Successfully!\n\n` +
+            `• PNR: ${record.pnr}\n` +
+            `• Passenger: ${record.passenger}\n` +
+            `• Train: ${record.trainNumber} - ${record.trainName}\n` +
+            `• Cancellation Fee: ₹${deduction}\n` +
+            `• Refund Amount: ₹${refundAmount} (initiated to source account)\n` +
+            `• Cancellation ID: CAN-${Math.floor(100000 + Math.random() * 900000)}`,
+          intent: "cancel_ticket",
+        });
+      }
+    }
 
-      if (isPnrQuery || isCancelQuery) {
-        // Clear booking state so the urgent inquiry is served
+    // 3. Preemptive Direct 10-Digit PNR Check
+    const pnrMatch = cleanMsg.match(/\b\d{10}\b/);
+    const isPnrCheck =
+      /(check|status|pnr|track|verify|where)/i.test(cleanMsg) &&
+      !/(cancel|canel|cancle|refund)/i.test(cleanMsg);
+
+    if (pnrMatch && isPnrCheck && !bookingSessions[sessionId]) {
+      const rawPnr = pnrMatch[0];
+      const record = db.getBooking(rawPnr);
+      if (!record) {
+        return res.json({
+          reply: `❌ PNR ${rawPnr} not found in reservation records. Please verify the 10-digit number.`,
+          intent: "check_pnr_status",
+        });
+      }
+      return res.json({
+        reply:
+          `📋 Live PNR Status: ${record.pnr}\n\n` +
+          `• Passenger: ${record.passenger}\n` +
+          `• Train: ${record.trainNumber} - ${record.trainName}\n` +
+          `• Class: ${record.travelClass}\n` +
+          `• Coach: ${record.coach} | Berth: ${record.berth}\n` +
+          `• Status: ${record.status}\n` +
+          `• Chart Status: Chart Prepared`,
+        intent: "check_pnr_status",
+      });
+    }
+
+    // 4. Preemptive Direct Cancellation (with typo tolerance)
+    const isCancellation = /(cancel|canel|cancle|cancellation|refund)/i.test(
+      cleanMsg,
+    );
+    if (isCancellation && !bookingSessions[sessionId]) {
+      if (pnrMatch) {
+        const rawPnr = pnrMatch[0];
+        const record = db.getBooking(rawPnr);
+        if (!record) {
+          return res.json({
+            reply: `❌ Cancellation failed: PNR ${rawPnr} does not exist in our active database.`,
+            intent: "cancel_ticket",
+          });
+        }
+        if (
+          record.status.includes("Cancelled") ||
+          record.status.includes("CAN")
+        ) {
+          return res.json({
+            reply: `ℹ️ Ticket for PNR ${rawPnr} is already CANCELLED. No further action needed.`,
+            intent: "cancel_ticket",
+          });
+        }
+        const deduction = 240;
+        const refundAmount = Math.max(0, record.farePaid - deduction);
+        db.updateBookingStatus(rawPnr, "CAN (Cancelled)");
+        return res.json({
+          reply:
+            `✅ Ticket Cancelled Successfully!\n\n` +
+            `• PNR: ${record.pnr}\n` +
+            `• Passenger: ${record.passenger}\n` +
+            `• Train: ${record.trainNumber} - ${record.trainName}\n` +
+            `• Cancellation Fee: ₹${deduction}\n` +
+            `• Refund Amount: ₹${refundAmount} (initiated to source account)\n` +
+            `• Cancellation ID: CAN-${Math.floor(100000 + Math.random() * 900000)}`,
+          intent: "cancel_ticket",
+        });
+      } else {
+        cancelSessions[sessionId] = true;
+        return res.json({
+          reply: `⚠️ Please provide your 10-digit PNR to cancel your ticket.\nExample: "Cancel PNR 8492019482"`,
+          intent: "cancel_ticket",
+        });
+      }
+    }
+
+    // 5. Intercept: If user is inside booking flow
+    if (bookingSessions[sessionId]) {
+      const isUrgentPnr = isPnrCheck && pnrMatch;
+      const isUrgentCancel = isCancellation && pnrMatch;
+
+      if (isUrgentPnr || isUrgentCancel) {
         delete bookingSessions[sessionId];
       } else {
-        // Route to controlled multi-turn step handler
         const stepReply = handleBookingStep(sessionId, cleanMsg);
         return res.json({ reply: stepReply, intent: "book_ticket_step" });
       }
     }
 
-    // 3. Dialogflow NLU Detection
+    // 6. Dialogflow NLU Detection
     const request = {
       session: sessionPath,
       queryInput: {
@@ -546,19 +670,19 @@ app.post("/api/chat", async (req, res) => {
       sessionId,
     );
 
-    // Guard against empty strings or missing dialogflow messages
+    // 7. Safety Net: Guard against empty strings or blank messages
     if (
       !finalReply ||
       finalReply.trim() === "" ||
       finalReply.includes("No response text received")
     ) {
       finalReply =
-        `🤔 I didn't quite catch that. As your Railway Assistant, I can help you with:\n\n` +
-        `• 🔍 Search: "Trains from Mumbai to Delhi"\n` +
-        `• 🎟️ Booking: "Book a train ticket"\n` +
-        `• 📋 PNR Status: "Check PNR 8492019482"\n` +
-        `• ❌ Cancel: "Cancel PNR 8492019482"\n\n` +
-        `What would you like to do?`;
+        `🤔 I didn't recognize that request. As your Railway Assistant, I can help you with:\n\n` +
+        `• 🔍 Search Trains: "Trains from Mumbai to Delhi"\n` +
+        `• 🎟️ Book Ticket: "Book a ticket"\n` +
+        `• 📋 Check PNR: "Check PNR 8492019482"\n` +
+        `• ❌ Cancel Ticket: "Cancel PNR 8492019482"\n\n` +
+        `Type "exit" anytime to reset.`;
     }
 
     res.json({
